@@ -1,0 +1,54 @@
+post_install() {
+  cat <<'MSG'
+==> lagd needs two things before it will do anything:
+
+    1. Join the `input` group, then log out and back in:
+
+         sudo usermod -aG input "$USER"
+
+       This grants read access to every keyboard and mouse on the machine, and
+       write access to /dev/uinput. That is what the input stage is, not an
+       incidental requirement.
+
+    2. Enable the stages you want, as *user* units — not system ones:
+
+         systemctl --user enable --now lagd-input
+         systemctl --user enable --now lagd-audio          # needs a --target, see below
+         systemctl --user enable --now lagd-present-seed
+
+==> Then dial them, independently and while they run:
+
+      lagd-ctl status
+      lagd-ctl set input 50
+      lagd-ctl drop audio present     # out of the path entirely, not merely zero
+      lagd-ctl toggle input
+      lagd-ctl panic                  # everything off, if something feels wrong
+
+==> Configuration lives in /etc/lagd/*.conf, read by the units as arguments.
+    Set audio.conf's --target to your real sink (`wpctl status`) before enabling
+    lagd-audio: without it the delayed output autoconnects to the default sink,
+    which is a feedback loop if lagd is that default.
+
+==> The present stage is a Vulkan layer, gated so it is not loaded into every
+    process. Enable it per-program:
+
+      LAGD_PRESENT=1 some-game
+
+    Note that a present delay costs framerate as well as latency — see
+    /usr/share/doc/lagd-git/README.md.
+MSG
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_remove() {
+  # The input stage holds exclusive grabs on real devices. The kernel releases
+  # them when the process dies either way, but stopping it first means the
+  # devices come back before the binary goes away.
+  if command -v loginctl >/dev/null 2>&1; then
+    echo '==> Stop the user units first if they are running:'
+    echo '      systemctl --user disable --now lagd-input lagd-audio lagd-present-seed'
+  fi
+}

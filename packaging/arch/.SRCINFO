@@ -1,0 +1,27 @@
+pkgbase = lagd-git
+	pkgdesc = Per-stage latency injection for input, audio and Vulkan present, dialled live
+	pkgver = r3.f37f880
+	pkgrel = 1
+	url = https://github.com/parzivale/lagd
+	install = lagd.install
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	makedepends = cargo
+	makedepends = git
+	makedepends = clang
+	makedepends = pkgconf
+	depends = gcc-libs
+	depends = glibc
+	depends = libpipewire
+	optdepends = vulkan-icd-loader: the present stage, which is a Vulkan layer the loader dlopens
+	optdepends = wireplumber: to find the sink name for lagd-audio --target
+	provides = lagd
+	conflicts = lagd
+	backup = etc/lagd/input.conf
+	backup = etc/lagd/audio.conf
+	backup = etc/lagd/present.conf
+	source = lagd::git+https://github.com/parzivale/lagd.git
+	sha256sums = SKIP
+
+pkgname = lagd-git

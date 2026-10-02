@@ -1,0 +1,107 @@
+# Maintainer: parzivale <zeus@theolivers.org>
+
+# A VCS package: lagd has no tagged release yet, so there is no tarball to hash.
+# Once one exists this becomes `lagd` with a versioned source= and a real sha256.
+pkgname=lagd-git
+_pkgname=lagd
+pkgver=r3.f37f880
+pkgrel=1
+pkgdesc='Per-stage latency injection for input, audio and Vulkan present, dialled live'
+arch=('x86_64' 'aarch64')
+url='https://github.com/parzivale/lagd'
+license=('MIT')
+# lagd-audio links libpipewire-0.3 directly, so it is a hard dependency rather
+# than an optional one. `libpipewire` also ships the headers and
+# libpipewire-0.3.pc that pipewire-sys needs at build time - the `pipewire`
+# package ships neither - so it covers both and needs no makedepends entry.
+depends=('gcc-libs' 'glibc' 'libpipewire')
+# cargo comes from `rust`, which provides it. clang is for pipewire-sys' bindgen.
+makedepends=('cargo' 'git' 'clang' 'pkgconf')
+optdepends=(
+  'vulkan-icd-loader: the present stage, which is a Vulkan layer the loader dlopens'
+  'wireplumber: to find the sink name for lagd-audio --target'
+)
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+backup=('etc/lagd/input.conf' 'etc/lagd/audio.conf' 'etc/lagd/present.conf')
+install="$_pkgname.install"
+source=("$_pkgname::git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$_pkgname"
+  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+prepare() {
+  cd "$_pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$_pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+
+  # Each crate is named rather than building the workspace: lagd-probe is a test
+  # harness that creates synthetic input devices, and it is deliberately not
+  # shipped.
+  cargo build --frozen --release --all-features \
+    -p lagd-input \
+    -p lagd-audio \
+    -p lagd-ctl \
+    -p lagd-present
+}
+
+check() {
+  cd "$_pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+
+  # Unit tests only — the control plane and the audio ring buffer. Everything
+  # that needs a real device, a PipeWire graph or a Vulkan driver lives in the
+  # flake's VM check, which needs a booted machine rather than a build chroot.
+  cargo test --frozen --release -p lagd-core -p lagd-audio
+}
+
+package() {
+  cd "$_pkgname"
+
+  install -Dm755 target/release/lagd-input "$pkgdir/usr/bin/lagd-input"
+  install -Dm755 target/release/lagd-audio "$pkgdir/usr/bin/lagd-audio"
+  install -Dm755 target/release/lagd-ctl "$pkgdir/usr/bin/lagd-ctl"
+
+  install -Dm755 target/release/liblagd_present.so "$pkgdir/usr/lib/liblagd_present.so"
+
+  # Same manifest template the flake installs, with the same placeholder: the
+  # Vulkan loader wants an absolute library path, and where that is depends on
+  # who is doing the packaging.
+  local manifest="$pkgdir/usr/share/vulkan/implicit_layer.d/lagd_present.json"
+  install -Dm644 crates/lagd-present/lagd_present.json "$manifest"
+  sed -i 's|@out@|/usr|' "$manifest"
+  grep -q '/usr/lib/liblagd_present.so' "$manifest"
+
+  local p=packaging/arch
+
+  # User units, not system ones: the control plane lives in $XDG_RUNTIME_DIR and
+  # the audio stage needs the session's own PipeWire.
+  install -Dm644 "$p/systemd/lagd-input.service" \
+    "$pkgdir/usr/lib/systemd/user/lagd-input.service"
+  install -Dm644 "$p/systemd/lagd-audio.service" \
+    "$pkgdir/usr/lib/systemd/user/lagd-audio.service"
+  install -Dm644 "$p/systemd/lagd-present-seed.service" \
+    "$pkgdir/usr/lib/systemd/user/lagd-present-seed.service"
+
+  install -Dm644 "$p/conf/input.conf" "$pkgdir/etc/lagd/input.conf"
+  install -Dm644 "$p/conf/audio.conf" "$pkgdir/etc/lagd/audio.conf"
+  install -Dm644 "$p/conf/present.conf" "$pkgdir/etc/lagd/present.conf"
+
+  install -Dm644 "$p/udev/60-lagd-uinput.rules" \
+    "$pkgdir/usr/lib/udev/rules.d/60-lagd-uinput.rules"
+  install -Dm644 "$p/modules-load/lagd.conf" \
+    "$pkgdir/usr/lib/modules-load.d/lagd.conf"
+
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

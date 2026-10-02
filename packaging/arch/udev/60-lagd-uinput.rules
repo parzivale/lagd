@@ -1,0 +1,5 @@
+# lagd-input re-emits delayed events through virtual devices it creates on
+# /dev/uinput. Granting the existing `input` group access means a user who can
+# already read every keyboard can also create the twins, rather than introducing
+# a second group for the same privilege.
+KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"

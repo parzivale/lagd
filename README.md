@@ -102,6 +102,34 @@ The input stage grabs your keyboard, so it is built to fail open:
 Frames, not events, are what get queued: a multitouch or absolute update split
 across two delays would reach clients as a torn, self-contradictory state.
 
+## Arch Linux
+
+`packaging/arch/` holds a PKGBUILD. It is a VCS package (`lagd-git`) because
+there is no tagged release yet to hash; once there is, it becomes `lagd` with a
+versioned `source=` and a real checksum.
+
+```console
+$ cd packaging/arch && makepkg -si
+```
+
+All three stages install as **user** units, matching the NixOS module: the
+control plane lives in `$XDG_RUNTIME_DIR`, which is where `lagd-ctl` and the
+Vulkan layer inside your own processes look for it.
+
+```console
+$ sudo usermod -aG input "$USER"      # then log out and back in
+$ systemctl --user enable --now lagd-input
+```
+
+Arguments live in `/etc/lagd/{input,audio,present}.conf`, read by the units as
+`$LAGD_*_ARGS`, and are `backup=`-marked so pacman keeps your edits. Set
+`audio.conf`'s `--target` before enabling `lagd-audio`.
+
+The package uses the existing `input` group for `/dev/uinput` rather than adding
+a second group, via a udev rule — a user who can already read every keyboard is
+not meaningfully more privileged for being able to create the twins. It ships no
+`lagd-probe`: that is the test harness, and it creates synthetic input devices.
+
 ## NixOS
 
 ```nix

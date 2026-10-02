@@ -1,0 +1,19 @@
+[Unit]
+Description=Seed the lagd present latency stage
+Documentation=https://github.com/parzivale/lagd
+
+# Nothing is resident for the present stage — the Vulkan layer lives inside each
+# client process — so its starting delay has to be written into the control plane
+# by something. This is that something.
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# A default first, so deleting the config file leaves a working unit rather than
+# one whose ExecStart is missing an argument.
+Environment=LAGD_PRESENT_MS=0
+EnvironmentFile=-/etc/lagd/present.conf
+ExecStart=/usr/bin/lagd-ctl set present $LAGD_PRESENT_MS
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,25 @@
+[Unit]
+Description=lagd audio latency stage
+Documentation=https://github.com/parzivale/lagd
+# The virtual sink has to live in the same session as the PipeWire it forwards to.
+After=pipewire.service
+Wants=pipewire.service
+
+[Service]
+Type=simple
+Environment=LAGD_AUDIO_ARGS=
+EnvironmentFile=-/etc/lagd/audio.conf
+ExecStart=/usr/bin/lagd-audio $LAGD_AUDIO_ARGS
+Restart=on-failure
+RestartSec=2
+
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+# RestrictRealtime is left off on purpose: the delay runs in PipeWire's
+# real-time callbacks.
+
+[Install]
+WantedBy=default.target

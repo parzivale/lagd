@@ -1,0 +1,32 @@
+[Unit]
+Description=lagd input latency stage
+Documentation=https://github.com/parzivale/lagd
+
+# A user unit, not a system one: the control plane lives in $XDG_RUNTIME_DIR, which
+# is where lagd-ctl and the Vulkan layer in this user's own processes look for it.
+# The stage itself needs no session, only /dev/input/event* and /dev/uinput, so the
+# user must be in the `input` group.
+
+[Service]
+Type=simple
+Environment=LAGD_INPUT_ARGS=
+EnvironmentFile=-/etc/lagd/input.conf
+# Unquoted, so systemd splits it into separate arguments.
+ExecStart=/usr/bin/lagd-input $LAGD_INPUT_ARGS
+Restart=on-failure
+RestartSec=2
+
+# Deliberately absent: PrivateDevices, which hides exactly the two device nodes
+# this stage exists to use. Also absent are the namespacing options
+# (ProtectSystem, ProtectHome, and friends): in a user unit they need
+# unprivileged user namespaces, and a unit that fails to start on a stock install
+# is worse than one slightly less confined.
+NoNewPrivileges=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=default.target
