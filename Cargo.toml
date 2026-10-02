@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+# This is a virtual workspace, so crane has no root package to take a name
+# from; naming it here keeps the source-only checks (fmt, deny, audit) quiet.
+[workspace.metadata.crane]
+name = "lagd"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+repository = "https://github.com/parzivale/lagd"
+
+[workspace.dependencies]
+lagd-core = { path = "crates/lagd-core" }
+
+anyhow = "1.0.104"
+clap = { version = "4.6", features = ["derive"] }
+env_logger = "0.11"
+evdev = "0.13.2"
+libc = "0.2"
+log = "0.4"
+memmap2 = "0.9"
+# v0_3_49 is the lowest feature level carrying PW_KEY_TARGET_OBJECT,
+# PW_KEY_AUDIO_RATE and `Buffer::requested`, all of which the delay stage needs.
+# It sets the minimum PipeWire this binary runs against (0.3.49, early 2022).
+pipewire = { version = "0.10.1", features = ["v0_3_49"] }
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# The delay maths converts between u64 microseconds and f32/usize frame counts
+# constantly; the casts are all range-checked by construction (delays are
+# clamped to MAX_DELAY_US) and spelling each one out buries the logic.
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"

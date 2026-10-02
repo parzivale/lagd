@@ -1,0 +1,20 @@
+[package]
+name = "lagd-present"
+description = "Vulkan layer that holds vkQueuePresentKHR to inject frame latency"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "lagd_present"
+# An implicit Vulkan layer is a shared object the loader dlopen()s; nothing
+# links against it at build time.
+crate-type = ["cdylib"]
+
+[dependencies]
+lagd-core = { workspace = true }
+
+[lints]
+workspace = true

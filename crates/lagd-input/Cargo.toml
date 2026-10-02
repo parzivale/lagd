@@ -1,0 +1,24 @@
+[package]
+name = "lagd-input"
+description = "Injects deliberate latency into evdev input devices via uinput"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "lagd-input"
+path = "src/main.rs"
+
+[dependencies]
+lagd-core = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+env_logger = { workspace = true }
+evdev = { workspace = true }
+libc = { workspace = true }
+log = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,24 @@
+[package]
+name = "lagd-audio"
+description = "A PipeWire virtual sink that delays audio on its way to the real one"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "lagd-audio"
+path = "src/main.rs"
+
+[dependencies]
+lagd-core = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+env_logger = { workspace = true }
+libc = { workspace = true }
+log = { workspace = true }
+pipewire = { workspace = true }
+
+[lints]
+workspace = true

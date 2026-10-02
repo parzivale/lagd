@@ -1,0 +1,20 @@
+[package]
+name = "lagd-ctl"
+description = "Runtime control for the lagd latency stages"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "lagd-ctl"
+path = "src/main.rs"
+
+[dependencies]
+lagd-core = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "lagd-core"
+description = "Shared control plane and delay queue for the lagd latency injectors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+libc = { workspace = true }
+memmap2 = { workspace = true }
+
+[lints]
+workspace = true
