@@ -32,6 +32,12 @@
 
         flake.nixosModules.default = import ./module.nix { inherit self; };
 
+        # finix evaluates with `class = "nixos"` but has no systemd, so the stages
+        # are expressed against its `providers.services` contract instead. Kept
+        # separate rather than branching inside one module: the two disagree about
+        # which stages are system units, not just about unit syntax.
+        flake.finixModules.default = import ./finix { inherit self; };
+
         perSystem =
           {
             pkgs,

@@ -172,6 +172,42 @@ $ LAGD_PRESENT=1 some-game
 `services.lagd.present.enableForSession = true` sets it session-wide, which is
 usually the wrong trade given the throughput cost above.
 
+## finix
+
+```nix
+{
+  imports = [ inputs.lagd.finixModules.default ];
+
+  services.lagd = {
+    enable = true;
+    users = [ "bella" ];
+    input.delayMs = 0;
+    present.delayMs = 0;
+  };
+}
+```
+
+The stages are split differently here than on NixOS, and the split is the better
+one. The input stage needs devices, not a session — `/dev/input/event*` and
+`/dev/uinput` and nothing else — so it is a **system** unit and works under every
+init finix supports. The audio stage needs the session, because the PipeWire it
+talks to is the user's own, so it is a unit in that user's own tree.
+
+Those two cannot share `$XDG_RUNTIME_DIR`, so the control plane is pinned to
+`/run/lagd/state`, owned by a `lagd` group that every listed user joins. That is
+what `LAGD_STATE` exists for.
+
+Two consequences worth knowing before you enable things:
+
+- **`audio.enable` and `present.enableForSession` need an init that can supervise
+  a user's own tree.** dinit can; finit has no per-user instance yet. Either is
+  refused at eval time with a message saying so, rather than producing a unit
+  that never starts. Set `providers.services.user.backend = "dinit"` for them, or
+  leave both off — the input and present stages need no session, and the layer
+  can always be enabled per-process with `LAGD_PRESENT=1 some-game`.
+- **finix ships no PipeWire module**, so `audio.enable` warns: the unit will start
+  and fail until something provides one.
+
 ## Development
 
 ```console
