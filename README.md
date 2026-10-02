@@ -40,7 +40,7 @@ measuring:
 
 | stage | `set 0` still costs | `drop` removes it by |
 | --- | --- | --- |
-| input | a grab + uinput round trip (~0.1–0.5 ms, plus scheduler jitter) | releasing the `EVIOCGRAB`, so the real device delivers directly |
+| input | a grab + uinput round trip — measured at 0.6–1.3 ms, median 1.1 ms | releasing the `EVIOCGRAB`, so the real device delivers directly |
 | audio | a PipeWire quantum | disconnecting both nodes, so clients move back to the real sink |
 | present | nothing — the hook calls straight through | nothing to remove |
 
@@ -148,9 +148,64 @@ usually the wrong trade given the throughput cost above.
 
 ```console
 $ nix develop          # cargo, clippy, evtest, wev, vulkaninfo, helvum
-$ nix flake check      # clippy (pedantic, deny warnings), fmt, taplo, doc, nextest, audit, deny
+$ nix flake check      # clippy (pedantic, deny warnings), fmt, taplo, doc, nextest, audit, deny, VM
 $ nix build            # all three binaries plus the layer, joined
 $ lagd-input --list    # what autodetection would pick, and why not if nothing
 ```
+
+### The VM test
+
+Unit tests can cover the control plane and the ring buffer, but not a real
+`EVIOCGRAB` or a real PipeWire graph. `checks.vm` boots a machine and checks the
+things that only exist at runtime:
+
+- all three stages start as **user** services in a session with no graphical
+  login — the assumption most likely to be wrong in the module, since it needs
+  `users.users.<name>.linger`;
+- `lagd-ctl` and the daemons map the same `/run/user/1000/lagd/state`;
+- the virtual sink appears in `pw-cli ls Node`, vanishes on `drop audio`, and
+  comes back on `restore audio`;
+- `vulkaninfo` succeeds under lavapipe with the layer active, which exercises the
+  whole negotiate → `GetInstanceProcAddr` → `CreateInstance` → `CreateDevice` →
+  `GetDeviceProcAddr` chain, and the layer library is *not* loaded without
+  `LAGD_PRESENT=1`;
+- the input stage really takes an exclusive grab, really releases it on `drop
+  input`, and takes it back on `restore`;
+- the delay it applies matches the delay it was told.
+
+That last one is measured rather than asserted from the outside:
+`crates/lagd-probe` creates a synthetic uinput keyboard, waits for `lagd-input`
+to build its twin, then emits and times frames across the pair. One process owns
+both ends on purpose — split in two it would be comparing clocks and racing the
+device-creation order.
+
+The timing assertion leans on the invariant that VM jitter cannot break: **a
+frame can be late, never early.** So the lower bound is tight (`min >= delay`)
+and the upper bound is deliberately loose. It also checks that 0/40/80 ms
+produce *different* medians, because every per-row bound would pass for a stage
+that ignored its configuration and delayed nothing.
+
+What it measures, in a KVM-accelerated aarch64 VM:
+
+| configured | min | median | max |
+| --- | --- | --- | --- |
+| 0 ms | 0.57 ms | 1.09 ms | 1.26 ms |
+| 40 ms | 40.26 ms | 40.27 ms | 40.35 ms |
+| 80 ms | 80.24 ms | 81.26 ms | 81.40 ms |
+
+The 0 ms row is the stage's own overhead — the grab and uinput round trip you
+cannot configure away, only `drop`. Expect it to be lower on hardware; it is
+measured here, not promised.
+
+The Vulkan half runs the probe's minimal client with and without
+`LAGD_PRESENT=1` and requires the two reports to be identical, so the layer has
+to be transparent rather than merely non-fatal.
+
+```console
+$ nix build .#checks.aarch64-linux.vm -L   # needs KVM
+```
+
+`nix flake check` caches it by derivation, so it re-runs when the code changes
+and is instant when it has not.
 
 Built with flake-parts, crane and rust-overlay.

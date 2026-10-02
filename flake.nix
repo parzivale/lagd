@@ -95,6 +95,11 @@
             lagd-audio = crate "lagd-audio";
             lagd-ctl = crate "lagd-ctl";
 
+            # Test harness, not part of `packages.default`: it creates synthetic
+            # input devices and measures the twin, which is only meaningful
+            # inside the VM test.
+            lagd-probe = crate "lagd-probe";
+
             # A Vulkan layer is a plain shared object plus a manifest telling the
             # loader where to find it and which environment variable turns it on,
             # so neither of crane's binary-install conventions applies.
@@ -140,6 +145,7 @@
                 lagd-audio
                 lagd-ctl
                 lagd-present
+                lagd-probe
                 ;
 
               # One path to put on PATH and in XDG_DATA_DIRS: the three binaries
@@ -172,7 +178,14 @@
                 lagd-audio
                 lagd-ctl
                 lagd-present
+                lagd-probe
                 ;
+
+              # Boots a machine and exercises what only runtime can show: the
+              # user units starting, a real EVIOCGRAB, the delay actually
+              # applied, the Vulkan layer loading, and the sink joining and
+              # leaving the PipeWire graph. Needs KVM.
+              vm = import ./tests/vm.nix { inherit self pkgs; };
 
               lagd-clippy = craneLib.cargoClippy (
                 commonArgs
